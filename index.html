@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Пятнашки для мухи</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap">
+<style>
+/* Светлая тема (по умолчанию) */
+:root{--bg:#dfe7ea;--panel:#f4f7f6;--ink:#14232b;--muted:#5b6c74;--tile:#fbfcfb;--tile-edge:#b9c7cc;--hole:#cdd8dc;--accent:#1f8a7d;--accent-ink:#fff;--warn:#b3402f;--shadow:rgba(20,35,43,.18);color-scheme:light}
+/* Тёмная тема */
+:root[data-theme="dark"]{--bg:#0f1a1f;--panel:#17262d;--ink:#e6eef0;--muted:#8fa3ab;--tile:#223841;--tile-edge:#34505b;--hole:#0c1519;--accent:#47c2b2;--accent-ink:#06211d;--warn:#ff8f7a;--shadow:rgba(0,0,0,.5);color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme]){--bg:#0f1a1f;--panel:#17262d;--ink:#e6eef0;--muted:#8fa3ab;--tile:#223841;--tile-edge:#34505b;--hole:#0c1519;--accent:#47c2b2;--accent-ink:#06211d;--warn:#ff8f7a;--shadow:rgba(0,0,0,.5);color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;padding:max(20px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom));display:flex;justify-content:center;transition:background .2s,color .2s}
+main{width:100%;max-width:640px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}
+h1{font-size:clamp(28px,6vw,40px);font-weight:800;letter-spacing:-.02em;margin:8px 0 4px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.lead{color:var(--muted);margin:4px 0 16px;line-height:1.45}
+input[type=text]{font:inherit;font-size:18px;font-weight:700;color:var(--ink);background:var(--bg);border:2px solid var(--tile-edge);border-radius:10px;padding:10px 12px;width:100%;text-transform:uppercase}
+input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button{font:inherit;font-weight:700;border-radius:10px;padding:12px 18px;cursor:pointer;background:var(--panel);color:var(--ink);border:2px solid var(--tile-edge)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.small{padding:8px 14px;font-size:14px}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.5;cursor:not-allowed}
+#msg{min-height:1.4em;margin:0 0 10px;font-size:14px;color:var(--muted)}
+#msg.err{color:var(--warn)}
+#msg.win{color:var(--accent);font-weight:700}
+#wrap{overflow-x:auto;padding:4px 4px 14px;margin:0 -4px}
+#board{display:grid;gap:6px;padding:10px;background:var(--panel);border-radius:16px;box-shadow:0 6px 24px var(--shadow);user-select:none;-webkit-user-select:none}
+.cell{aspect-ratio:1;min-width:0;border-radius:10px;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;font-weight:800;font-size:var(--fs,24px);line-height:1;background:var(--tile);border:2px solid var(--tile-edge);cursor:pointer;transition:transform .12s,box-shadow .12s}
+.cell.ok{border-color:var(--accent);color:var(--accent)}
+.cell.hole{background:var(--hole);border-color:transparent;box-shadow:inset 0 2px 6px var(--shadow)}
+.cell.sel{box-shadow:0 0 0 3px var(--accent),0 0 14px var(--accent);transform:scale(1.05);z-index:1;position:relative}
+.cell.hole.sel{box-shadow:inset 0 0 0 3px var(--accent),0 0 10px var(--accent);transform:none}
+.hint{margin:8px 0 0;font-size:13px;color:var(--muted);line-height:1.5}
+.status{display:flex;justify-content:space-between;gap:12px;margin-top:6px;font-size:14px;color:var(--muted);flex-wrap:wrap}
+.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.actions button{flex:1 1 140px}
+.pad{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,48px);gap:6px;margin:16px auto 0;justify-content:center}
+.pad button{padding:0;font-size:20px}
+.pad .up{grid-column:2;grid-row:1}.pad .lt{grid-column:1;grid-row:2}.pad .dn{grid-column:2;grid-row:2}.pad .rt{grid-column:3;grid-row:2}
+.overlay{position:fixed;inset:0;background:rgba(5,12,15,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.overlay.open{display:flex}
+.dialog{background:var(--panel);border-radius:20px;padding:24px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 60px var(--shadow)}
+.dialog.wide{max-width:520px;text-align:left;max-height:90vh;overflow:auto}
+.dialog h2{margin:0 0 6px;font-size:22px}
+.dialog p{margin:0 0 14px;color:var(--muted);line-height:1.4}
+#preview,#sizeInfo{margin:12px 0;padding:10px;border-radius:10px;background:var(--bg);font-size:14px;color:var(--muted)}
+#preview .lbl{margin-top:8px}
+#preview .prow{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+#preview .chip{padding:1px 6px;border-radius:6px;background:var(--tile);border:1px solid var(--tile-edge);color:var(--ink);font-weight:700;text-align:center;min-width:26px}
+#preview .chip small{display:block;font-size:10px;font-weight:500;color:var(--muted)}
+#preview .size,#sizeInfo{color:var(--ink);font-weight:700}
+#preview.bad .size,#sizeInfo.bad{color:var(--warn)}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+.row-btns button{flex:1 1 140px}
+.sky{position:relative;height:150px;margin-bottom:10px}
+#fly{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;animation:orbit 2.4s linear infinite}
+#fly svg{width:100%;height:100%;display:block;animation:bob .5s ease-in-out infinite}
+.wing{transform-origin:32px 30px;animation:flap .08s linear infinite alternate}
+.wing.r{animation-direction:alternate-reverse}
+@keyframes orbit{0%{transform:translate(55px,0) rotate(90deg)}25%{transform:translate(0,38px) rotate(180deg)}50%{transform:translate(-55px,0) rotate(270deg)}75%{transform:translate(0,-38px) rotate(360deg)}100%{transform:translate(55px,0) rotate(450deg)}}
+@keyframes bob{50%{transform:translateY(-4px)}}
+@keyframes flap{from{transform:scaleY(1)}to{transform:scaleY(.35)}}
+.track{height:6px;border-radius:3px;background:var(--hole);overflow:hidden;margin-bottom:18px}
+.track i{display:block;height:100%;width:35%;background:var(--accent);border-radius:3px;animation:slide 1.3s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-35%}100%{margin-left:100%}}
+#dialog.done #fly,#dialog.done .track,#dialog.done .sky{display:none}
+@media (prefers-reduced-motion:reduce){#fly,#fly svg,.wing,.cell,.track i{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1>Пятнашки для мухи</h1>
+    <div class="tools">
+      <button id="numBtn" class="small" type="button">Числа</button>
+      <button id="textBtn" class="small" type="button">Текст</button>
+      <button id="themeBtn" class="small" type="button" aria-label="Переключить тему"></button>
+    </div>
+  </div>
+  <p class="lead">«Числа»: поле по размеру (например 4x4). «Текст»: введите ФИО, буквы разложатся по исходным индексам, цель: выстроить их по алфавиту. В каждом ряду есть пустая клетка.</p>
+
+  <p id="msg" role="status"></p>
+  <div id="wrap"><div id="board" aria-label="Игровое поле"></div></div>
+  <div class="status"><span id="mode"></span><span>Ходов: <span id="moves">0</span></span></div>
+  <p class="hint"><b>WASD</b>: выбор ячейки (курсор). <b>Стрелочки</b>: сдвинуть выбранную плашку. <b>Enter / Пробел</b>: быстрый сдвиг в соседнюю пустую клетку.</p>
+
+  <div class="pad" aria-label="Экранные стрелки для выбранной плитки">
+    <button class="up" data-d="up" type="button" aria-label="Плитка вверх">▲</button>
+    <button class="lt" data-d="left" type="button" aria-label="Плитка влево">◀</button>
+    <button class="dn" data-d="down" type="button" aria-label="Плитка вниз">▼</button>
+    <button class="rt" data-d="right" type="button" aria-label="Плитка вправо">▶</button>
+  </div>
+
+  <div class="actions">
+    <button id="shuffle" type="button">Перемешать</button>
+    <button id="solve" class="primary" type="button">Решить</button>
+  </div>
+</main>
+
+<div id="numMenu" class="overlay" role="dialog" aria-modal="true" aria-labelledby="numTitle">
+  <form class="dialog wide" id="numForm">
+    <h2 id="numTitle">Поле из чисел</h2>
+    <p>Введите размер: «4x4», «3x5» или просто «4». Формат: строки x столбцы.</p>
+    <input id="size" type="text" value="4x4" autocomplete="off" spellcheck="false" aria-label="Размер поля">
+    <div id="sizeInfo"></div>
+    <div class="row-btns">
+      <button id="applyNum" class="primary" type="submit">Создать поле</button>
+      <button id="closeNum" type="button">Закрыть</button>
+    </div>
+  </form>
+</div>
+
+<form id="textMenu" class="overlay" role="dialog" aria-modal="true" aria-labelledby="textTitle">
+  <div class="dialog wide">
+    <h2 id="textTitle">Поле из текста</h2>
+    <p>Введите строку. Она разобьётся на буквы (всегда в ВЕРХНЕМ РЕГИСТРЕ), встанет в матрицу по исходным индексам. Цель: расставить в алфавитном порядке.</p>
+    <input id="fio" type="text" value="ИВАНОВ ИВАН ИВАНОВИЧ" autocomplete="off" spellcheck="false" aria-label="Строка с ФИО">
+    <div id="preview"></div>
+    <div class="row-btns">
+      <button id="applyText" class="primary" type="submit">Создать поле</button>
+      <button id="closeText" type="button">Закрыть</button>
+    </div>
+  </div>
+</form>
+
+<div id="modal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+  <div class="dialog" id="dialog">
+    <div class="sky">
+      <div id="fly">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <g class="wing"><ellipse cx="18" cy="24" rx="15" ry="8" fill="#9fd6e8" fill-opacity=".75" stroke="#5b8fa3" transform="rotate(-25 18 24)"/></g>
+          <g class="wing r"><ellipse cx="46" cy="24" rx="15" ry="8" fill="#9fd6e8" fill-opacity=".75" stroke="#5b8fa3" transform="rotate(25 46 24)"/></g>
+          <ellipse cx="32" cy="42" rx="10" ry="15" fill="#2a3a3f"/>
+          <ellipse cx="32" cy="26" rx="9" ry="8" fill="#3b4f55"/>
+          <circle cx="27" cy="22" r="5" fill="#c8392b"/><circle cx="37" cy="22" r="5" fill="#c8392b"/>
+          <circle cx="26" cy="21" r="1.4" fill="#fff"/><circle cx="36" cy="21" r="1.4" fill="#fff"/>
+        </svg>
+      </div>
+    </div>
+    <h2 id="mtitle">Муха думает</h2>
+    <p id="mtext">Ищет решение, это может занять время.</p>
+    <div class="track"><i></i></div>
+    <button id="cancel" type="button" style="width:100%">Отмена</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var MAX_ROWS=12, MAX_NUM_COLS=12, MAX_LETTERS=120, MIN_CELL=34;
+  var rows=4, cols=4, goal=[], grid=[], moves=0, solving=null, sel=[0,0];
+  var textMode=false, startRows=null, modeLabel='Числа';
+  var $=function(id){return document.getElementById(id)};
+  var board=$('board'), msg=$('msg'), root=document.documentElement;
+  function say(t,cls){msg.textContent=t||'';msg.className=cls||''}
+  function openDlg(id){$(id).classList.add('open')}
+  function closeDlg(id){$(id).classList.remove('open')}
+
+  function applyTheme(t){
+    root.setAttribute('data-theme',t);
+    $('themeBtn').textContent=t==='dark'?'Светлая':'Тёмная';
+  }
+  var saved=null;
+  try{saved=localStorage.getItem('theme')}catch(e){}
+  applyTheme(saved||(window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));
+  $('themeBtn').addEventListener('click',function(){
+    var t=root.getAttribute('data-theme')==='dark'?'light':'dark';
+    applyTheme(t);
+    try{localStorage.setItem('theme',t)}catch(e){}
+  });
+
+  function setGoal(goalRows){
+    rows=goalRows.length;
+    cols=Math.max.apply(null,goalRows.map(function(r){return r.length}))+1;
+    goal=goalRows.map(function(r){var row=r.slice();while(row.length<cols)row.push('');return row});
+  }
+  
+  function numberGoal(r,c){
+    var k=1,out=[];
+    for(var i=0;i<r;i++){var row=[];for(var j=0;j<c-1;j++)row.push(String(k++));out.push(row)}
+    return out;
+  }
+  
+  function isSolved(){
+    for(var i=0;i<rows;i++)for(var j=0;j<cols;j++) if(grid[i][j]!==goal[i][j]) return false;
+    return true;
+  }
+  
+  function firstTile(){
+    for(var i=0;i<rows;i++)for(var j=0;j<cols;j++) if(grid[i][j]!=='') return [i,j];
+    return [0,0];
+  }
+  
+  function placeRow(tiles){
+    var blanks=cols-tiles.length,pos=[],j;
+    for(j=0;j<cols;j++)pos.push(j);
+    for(j=cols-1;j>0;j--){var q=Math.floor(Math.random()*(j+1));var t=pos[j];pos[j]=pos[q];pos[q]=t}
+    var isBlank={};for(j=0;j<blanks;j++)isBlank[pos[j]]=true;
+    var row=[],k=0;
+    for(j=0;j<cols;j++) row.push(isBlank[j]?'':tiles[k++]);
+    return row;
+  }
+  
+  function generate(){
+    var i,j;
+    if(textMode){
+      // Стартовое состояние: буквы по индексам
+      grid=startRows.map(placeRow);
+    }else{
+      var pool=[];
+      goal.forEach(function(r){r.forEach(function(v){if(v)pool.push(v)})});
+      // Надежное перемешивание пула
+      for(i=pool.length-1;i>0;i--){
+          j=Math.floor(Math.random()*(i+1));
+          var t=pool[i];pool[i]=pool[j];pool[j]=t;
+      }
+      var k=0;grid=[];
+      for(i=0;i<rows;i++){
+        var cnt=0;goal[i].forEach(function(v){if(v)cnt++});
+        grid.push(placeRow(pool.slice(k,k+cnt)));
+        k+=cnt;
+      }
+      if(isSolved()&&pool.length>2) return generate();
+    }
+    moves=0;
+    sel=firstTile();
+  }
+
+  function render(){
+    board.style.gridTemplateColumns='repeat('+cols+',minmax('+MIN_CELL+'px,1fr))';
+    board.style.minWidth=(cols*MIN_CELL+(cols-1)*6+20)+'px';
+    board.innerHTML='';
+    var maxLen=1;
+    for(var i=0;i<rows;i++)for(var j=0;j<cols;j++){
+      var v=grid[i][j],d=document.createElement('div');
+      d.dataset.i=i;d.dataset.j=j;
+      d.className='cell'+(v===''?' hole':(v===goal[i][j]?' ok':''))+(sel[0]===i&&sel[1]===j?' sel':'');
+      if(v!==''){d.textContent=v;if(v.length>maxLen)maxLen=v.length}
+      board.appendChild(d);
+    }
+    var cw=(board.clientWidth-20-6*(cols-1))/cols;
+    board.style.setProperty('--fs',Math.max(11,Math.min(40,cw/(maxLen*0.62+0.9)))+'px');
+    $('moves').textContent=moves;
+    $('mode').textContent=modeLabel+' · '+rows+' × '+cols;
+  }
+  window.addEventListener('resize',render);
+  
+  function afterMove(){
+    render();
+    if(isSolved()) say('Собрано за '+moves+' ходов.','win'); else say('');
+  }
+  
+  function inside(a,b){return a>=0&&b>=0&&a<rows&&b<cols}
+
+  // Перемещение курсора (WASD)
+  function moveSel(di,dj){
+    if(solving) return;
+    var a=sel[0]+di,b=sel[1]+dj;
+    if(!inside(a,b)) return;
+    sel=[a,b];render();
+  }
+  
+  // Перемещение самой плашки в указанном направлении (Стрелочки)
+  function moveTile(di,dj){
+    if(solving) return;
+    var i=sel[0],j=sel[1],a=i+di,b=j+dj;
+    if(grid[i][j]===''){say('Сначала выберите плашку (WASD или клик).','err');return}
+    if(!inside(a,b)||grid[a][b]!=='') return;
+    grid[a][b]=grid[i][j];grid[i][j]='';
+    sel=[a,b];moves++;afterMove();
+  }
+
+  // Быстрый сдвиг по Enter / Пробелу, если плашке есть только один путь
+  function quickMoveSelected() {
+      if(solving) return;
+      var i=sel[0], j=sel[1];
+      if(grid[i][j] === '') return;
+      var exits = [[0,1],[0,-1],[1,0],[-1,0]].filter(function(d){
+          return inside(i+d[0], j+d[1]) && grid[i+d[0]][j+d[1]] === '';
+      });
+      if(exits.length === 1) moveTile(exits[0][0], exits[0][1]);
+  }
+
+  function slide(i,j){
+    var d=[[0,1],[0,-1],[1,0],[-1,0]];
+    for(var n=0;n<4;n++){
+      var a=i+d[n][0],b=j+d[n][1];
+      if(inside(a,b)&&grid[a][b]===''&&grid[i][j]!==''){
+        grid[a][b]=grid[i][j];grid[i][j]='';
+        if(sel[0]===i&&sel[1]===j) sel=[a,b];
+        moves++;afterMove();return true;
+      }
+    }
+    return false;
+  }
+  
+  board.addEventListener('click',function(e){
+    var c=e.target.closest('.cell');
+    if(!c||solving) return;
+    var i=+c.dataset.i,j=+c.dataset.j,si=sel[0],sj=sel[1];
+    var selIsTile=grid[si][sj]!=='';
+    if(grid[i][j]===''){
+      if(selIsTile&&Math.abs(i-si)+Math.abs(j-sj)===1){moveTile(i-si,j-sj);return}
+      sel=[i,j];render();return;
+    }
+    if(i===si&&j===sj){
+      var exits=[[0,1],[0,-1],[1,0],[-1,0]].filter(function(d){return inside(i+d[0],j+d[1])&&grid[i+d[0]][j+d[1]]===''});
+      if(exits.length===1){moveTile(exits[0][0],exits[0][1]);return}
+    }
+    sel=[i,j];render();
+  });
+
+  // Строго разделенное управление
+  var MOVE={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
+  var CURSOR={w:[-1,0],s:[1,0],a:[0,-1],d:[0,1],'ц':[-1,0],'ы':[1,0],'ф':[0,-1],'в':[0,1]};
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){
+      if($('modal').classList.contains('open')) $('cancel').click();
+      else Array.prototype.forEach.call(document.querySelectorAll('.overlay.open'),function(o){o.classList.remove('open')});
+      return;
+    }
+    if(document.querySelector('.overlay.open')||e.ctrlKey||e.metaKey||e.altKey) return;
+    var tag=(e.target.tagName||'').toLowerCase();
+    if(tag==='input'||tag==='textarea') return;
+    
+    var k=e.key.length===1?e.key.toLowerCase():e.key;
+    if(MOVE[e.key]){ e.preventDefault(); moveTile(MOVE[e.key][0],MOVE[e.key][1]); }
+    else if(CURSOR[k]){ e.preventDefault(); moveSel(CURSOR[k][0],CURSOR[k][1]); }
+    else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); quickMoveSelected(); }
+  });
+  
+  var PAD={up:[-1,0],down:[1,0],left:[0,-1],right:[0,1]};
+  Array.prototype.forEach.call(document.querySelectorAll('.pad button'),function(b){
+    b.addEventListener('click',function(){moveTile(PAD[b.dataset.d][0],PAD[b.dataset.d][1])});
+  });
+  
+  $('shuffle').addEventListener('click',function(){if(solving)return;generate();render();say('')});
+
+  function parseSize(s){
+    var n=(s.match(/\d+/g)||[]).map(Number);
+    if(n.length<1||n.length>2) return {error:'Не понял размер. Пример: 4x4, 3x5 или 4.'};
+    var r=n[0],c=n.length===2?n[1]:n[0];
+    if(r<2||c<2) return {error:'Минимум 2 строки и 2 столбца.'};
+    if(r>MAX_ROWS||c>MAX_NUM_COLS) return {error:'Максимум '+MAX_ROWS+' × '+MAX_NUM_COLS+'.'};
+    return {r:r,c:c};
+  }
+  
+  function updateSizeInfo(){
+    var p=parseSize($('size').value),box=$('sizeInfo');
+    box.className=p.error?'bad':'';
+    box.textContent=p.error||('Поле '+p.r+' × '+p.c+', чисел: '+p.r*(p.c-1));
+    $('applyNum').disabled=!!p.error;
+    return p;
+  }
+  
+  $('numBtn').addEventListener('click',function(){openDlg('numMenu');updateSizeInfo();$('size').focus();$('size').select()});
+  $('closeNum').addEventListener('click',function(){closeDlg('numMenu')});
+  $('size').addEventListener('input',updateSizeInfo);
+  
+  $('numForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var p=updateSizeInfo();
+    if(p.error) return;
+    textMode=false;modeLabel='Числа';
+    setGoal(numberGoal(p.r,p.c));
+    generate();
+    render();
+    closeDlg('numMenu');
+    say('Создано числовое поле '+rows+' × '+cols+'.');
+  });
+
+  function splitLetters(s){
+    return Array.from(s.toUpperCase().replace(/[^\p{L}\p{N}]/gu,''));
+  }
+  function byAlphabet(a,b){return a.localeCompare(b,'ru')}
+  
+  function planCounts(n){
+    var best=null;
+    for(var r=2;r<=MAX_ROWS;r++){
+      var k=Math.ceil(n/r),cost=Math.abs(r-(k+1))*10+(r*k-n);
+      if(!best||cost<best.cost) best={r:r,cost:cost};
+    }
+    var base=Math.floor(n/best.r),extra=n%best.r,counts=[];
+    for(var i=0;i<best.r;i++) counts.push(base+(i<extra?1:0));
+    return counts;
+  }
+  
+  function chunk(arr,counts){
+    var out=[],p=0;
+    counts.forEach(function(c){out.push(arr.slice(p,p+c));p+=c});
+    return out;
+  }
+  
+  function textPlan(){
+    var letters=splitLetters($('fio').value);
+    if(letters.length<2) return {error:'Нужно минимум 2 буквы.',letters:letters};
+    if(letters.length>MAX_LETTERS) return {error:'Слишком длинная строка.',letters:letters};
+    var counts=planCounts(letters.length);
+    // Исходная строка - это letters, Цель - это sorted.
+    return {letters:letters,sorted:letters.slice().sort(byAlphabet),counts:counts};
+  }
+  
+  function chips(arr,withIdx){
+    var row=document.createElement('div');row.className='prow';
+    arr.forEach(function(t,i){
+      var c=document.createElement('span');c.className='chip';c.textContent=t;
+      if(withIdx){var s=document.createElement('small');s.textContent=i;c.appendChild(s)}
+      row.appendChild(c);
+    });
+    return row;
+  }
+  
+  function updatePreview(){
+    var p=textPlan(),box=$('preview');
+    box.className=p.error?'bad':'';box.innerHTML='';
+    var size=document.createElement('div');size.className='size';
+    var maxCnt=p.counts?Math.max.apply(null,p.counts):0;
+    size.textContent=p.error||('Букв: '+p.letters.length+'. Матрица: '+p.counts.length+' × '+(maxCnt+1));
+    box.appendChild(size);
+    if(!p.error){
+      var a=document.createElement('div');a.className='lbl';a.textContent='Старт (по индексам):';box.appendChild(a);
+      box.appendChild(chips(p.letters,true));
+      var b=document.createElement('div');b.className='lbl';b.textContent='Цель (по алфавиту):';box.appendChild(b);
+      box.appendChild(chips(p.sorted,false));
+    }
+    $('applyText').disabled=!!p.error;
+    return p;
+  }
+  
+  $('textBtn').addEventListener('click',function(){openDlg('textMenu');updatePreview();$('fio').focus();$('fio').select()});
+  $('closeText').addEventListener('click',function(){closeDlg('textMenu')});
+  
+  $('fio').addEventListener('input',function(){
+    var s=this.selectionStart;
+    this.value=this.value.toUpperCase(); // Принудительно верхний регистр
+    try{this.setSelectionRange(s,s)}catch(e){}
+    updatePreview();
+  });
+  
+  $('textMenu').addEventListener('submit',function(e){
+    e.preventDefault();
+    var p=updatePreview();
+    if(p.error) return;
+    textMode=true;modeLabel='Текст';
+    startRows=chunk(p.letters,p.counts); // Старт: строка разбитая по индексам
+    setGoal(chunk(p.sorted,p.counts));   // Цель: алфавитный порядок
+    generate();render();
+    closeDlg('textMenu');
+    say('Поле '+rows+' × '+cols+': '+p.letters.length+' букв, цель: алфавитный порядок.');
+  });
+
+  function wait(ms,signal){
+    return new Promise(function(res,rej){
+      var t=setTimeout(res,ms);
+      signal.addEventListener('abort',function(){clearTimeout(t);rej(new DOMException('abort','AbortError'))});
+    });
+  }
+  
+  function openModal(){$('dialog').classList.remove('done');$('mtitle').textContent='Муха думает';$('mtext').textContent='Ищет решение, это может занять время.';$('cancel').textContent='Отмена';openDlg('modal');$('cancel').focus()}
+  function copy(a){return a.map(function(r){return r.slice()})}
+
+  $('solve').addEventListener('click',async function(){
+    if(solving) return;
+    if(isSolved()){say('Уже собрано.','win');return}
+    var ctl=new AbortController();solving=ctl;
+    $('solve').disabled=true;openModal();
+    try{
+      var plan=null;
+      if(typeof window.flySolver==='function'){
+        plan=await window.flySolver({rows:rows,cols:cols,grid:copy(grid),goal:copy(goal)},ctl.signal);
+      }else{
+        await wait(4000,ctl.signal);
+      }
+      if(!plan){
+        $('dialog').classList.add('done');
+        $('mtitle').textContent='Мозг мухи ещё не подключён';
+        $('mtext').textContent='Здесь появится решение, когда муху научат играть.';
+        $('cancel').textContent='Закрыть';
+        return;
+      }
+      closeDlg('modal');
+      for(var s=0;s<plan.length;s++){
+        if(ctl.signal.aborted) break;
+        slide(plan[s][0],plan[s][1]);
+        await wait(250,ctl.signal);
+      }
+    }catch(err){
+      if(err&&err.name!=='AbortError'){say('Ошибка решателя: '+err.message,'err');closeDlg('modal')}
+    }finally{
+      solving=null;$('solve').disabled=false;
+    }
+  });
+  
+  $('cancel').addEventListener('click',function(){
+    if(solving) solving.abort();
+    closeDlg('modal');
+  });
+
+  setGoal(numberGoal(4,4));generate();render();
+})();
+</script>
+</body>
+</html>
