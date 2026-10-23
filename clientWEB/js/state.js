@@ -1,0 +1,160 @@
+// Состояние и локализация
+
+// Константы ограничений
+const MIN_SIZE = 2;
+const MAX_SIZE = 12;
+const MAX_LEN = 120;
+
+// Алфавиты
+const RU_UPPER = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+const RU_LOWER = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
+const EN_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const EN_LOWER = "abcdefghijklmnopqrstuvwxyz";
+
+// Глобальное состояние игры
+const AppState = {
+  inputMode: 'text',
+  savedInputs: {
+    text: 'Аскаров Юрий Витальевич',
+    numbers: '1 2 3 4 5 6 66 121',
+    symbols: 'Муха! 2026 @# АБВ 333'
+  },
+  parsedTokens: [],
+  startMatrix: [],
+  currentMatrix: [],
+  targetMatrix: [],
+  movesList: [],
+  currentStep: 0,
+  autoPlayId: null,
+  selectedCell: null,
+  dragStartInfo: null
+};
+
+const $ = id => document.getElementById(id);
+
+// Локализация (i18n)
+let currentLang = 'ru';
+const translations = {
+  ru: {
+    title: "Пятнашки для мухи",
+    tabText: "🔤 Текст (ФИО)",
+    tabNum: "🔢 Числа",
+    tabSym: "🔣 Символы",
+    btnSolveFly: "🪰 Решить мухой",
+    btnRules: "📖 Правила",
+    btnThemeDark: "Тёмная",
+    btnThemeLight: "Светлая",
+    btnPlay: "▶ Запустить",
+    btnPause: "⏸ Пауза",
+    lblRewind: "Перемотка:",
+    btnExport: "Скачать .txt",
+    btnImport: "📂 Загрузить отчёт",
+    btnReset: "Сброс к началу",
+    menuTitleTask: "Настройка задачи",
+    lblInputText: "Введите буквы (ФИО):",
+    lblInputNum: "Введите числа и цифры через пробел:",
+    lblInputSym: "Введите любые символы:",
+    btnGenExample: "🎲 Заполнить примером",
+    lblRecSize: "Рекомендуемый размер поля (от 2×2 до 12×12):",
+    lblManualSize: "Или укажите размер вручную (минимум 2×2):",
+    lblRows: "Строк (2–12):",
+    lblCols: "Столбцов (2–12):",
+    btnPlayManual: "Играть самому",
+    btnCancel: "Отмена",
+    menuTitleSettings: "⚙️ Настройки",
+    lblTimeout: "Таймаут ожидания сервера (сек):",
+    lblMaxMoves: "Лимит ходов для Мухи (остановка):",
+    lblForceUpper: "Переводить буквы в ВЕРХНИЙ РЕГИСТР",
+    btnSave: "Сохранить",
+    menuTitleRules: "📖 Правила и подсказки",
+    btnGotIt: "Понятно",
+    flyThinkingTitle: "Муха думает",
+    flyThinkingText: "Ищет решение, ждем ответа сервера...",
+    errText: "В режиме «Текст» разрешены только буквы! Удалите: ",
+    errNum: "В режиме «Числа» можно вводить только цифры и пробел! Ошибка: символ ",
+    errMinSize: "Стороны не могут быть меньше 2 (нельзя 1×N)! Минимум 2×2.",
+    errMaxSize: "Максимальный размер поля — 12×12.",
+    errArea: "Недостаточно места! Нужно минимум ",
+    okItems: "✅ Элементов: ",
+    infoSplitted: "ℹ️ Длинные числа (4+ знаков) разбиты на отдельные цифры.",
+    msgWin: "🎉 Победа! Собрано за",
+    msgTimeout: "Мозг мухи ещё не готов к таким вызовам (таймаут)",
+    msgFail: "Муха в растерянности, не хватило ходов.",
+    msgImp: "Муха пыталась, но это невозможно решить.",
+    msgRouteOk: "Маршрут мухи готов! Ходов:",
+    txtSynapses: "Синапсов задействовано:",
+    txtMove: "Шаг",
+    txtStart: "Старт:",
+    txtInitMat: "Начальная матрица",
+    msgImportOk: "Отчет успешно загружен! Загружено ходов:",
+    msgImportErrMoves: "Не удалось найти ходы в файле.",
+    msgImportErrFormat: "Файл отчета имеет старый или неверный формат. Скачайте новый отчет.",
+    rulesManualTitle: "🎮 Как управлять клетками вручную",
+    rulesManualList: "<li><b>Мышкой (свайп):</b> потяните клетку в пустую ячейку <code>_</code>.</li><li><b>Мышкой (клик):</b> кликните клетку, затем соседнюю <code>_</code>.</li><li><b>Клавиатурой:</b> <code>WASD</code> — выбор, <code>Стрелки</code> — ход.</li>",
+    rulesSortTitle: "📏 Порядок сортировки",
+    rulesSortList: "<li><b>Русские:</b> А, а, Б, б... Я, я</li><li><b>Латинские:</b> A, a, B, b... Z, z</li><li><b>Числа:</b> по возрастанию 1, 2, 3... 66, 121</li><li><b>Символы:</b> после букв и чисел</li><li><b>Пустые <code>_</code>:</b> справа снизу вверх</li>",
+    controlHint: "🎯 <b>Мышь:</b> потяни клетку (или клик → клик «_») | <b>Клавиатура:</b> <code>WASD</code> — выбор, <code>Стрелки ⬆️⬇️⬅️➡️</code> — ход",
+    stepCounter: "Шаг:"
+  },
+  en: {
+    title: "Fly Puzzle",
+    tabText: "🔤 Text",
+    tabNum: "🔢 Numbers",
+    tabSym: "🔣 Symbols",
+    btnSolveFly: "🪰 Fly Solve",
+    btnRules: "📖 Rules",
+    btnThemeDark: "Dark",
+    btnThemeLight: "Light",
+    btnPlay: "▶ Play",
+    btnPause: "⏸ Pause",
+    lblRewind: "Rewind:",
+    btnExport: "Download .txt",
+    btnImport: "📂 Load Report",
+    btnReset: "Reset",
+    menuTitleTask: "Task Setup",
+    lblInputText: "Enter letters:",
+    lblInputNum: "Enter numbers separated by space:",
+    lblInputSym: "Enter any characters:",
+    btnGenExample: "🎲 Random Example",
+    lblRecSize: "Recommended size (2×2 to 12×12):",
+    lblManualSize: "Or set size manually (min 2×2):",
+    lblRows: "Rows (2-12):",
+    lblCols: "Cols (2-12):",
+    btnPlayManual: "Play Manually",
+    btnCancel: "Cancel",
+    menuTitleSettings: "⚙️ Settings",
+    lblTimeout: "Server timeout (sec):",
+    lblMaxMoves: "Max moves for Fly:",
+    lblForceUpper: "Convert letters to UPPERCASE",
+    btnSave: "Save",
+    menuTitleRules: "📖 Rules & Hints",
+    btnGotIt: "Got it",
+    flyThinkingTitle: "Fly is thinking",
+    flyThinkingText: "Finding the best route...",
+    errText: "Only letters allowed in Text mode! Remove: ",
+    errNum: "Only digits and spaces in Number mode! Error at: ",
+    errMinSize: "Sides cannot be less than 2 (no 1×N)! Min 2×2.",
+    errMaxSize: "Max board size is 12×12.",
+    errArea: "Not enough space! Need at least ",
+    okItems: "✅ Items: ",
+    infoSplitted: "ℹ️ Long numbers (4+ digits) were split into single digits.",
+    msgWin: "🎉 Victory! Solved in",
+    msgTimeout: "Fly's brain is not ready for this (Timeout)",
+    msgFail: "Fly is confused, ran out of max moves.",
+    msgImp: "Fly tried, but this puzzle is impossible to solve.",
+    msgRouteOk: "Fly route ready! Moves:",
+    txtSynapses: "Synapses used:",
+    txtMove: "Move",
+    txtStart: "Start:",
+    txtInitMat: "Initial Matrix",
+    msgImportOk: "Report loaded successfully! Moves loaded:",
+    msgImportErrMoves: "Could not find any moves in the file.",
+    msgImportErrFormat: "The report file has an old or invalid format. Please download a new report.",
+    rulesManualTitle: "🎮 How to play manually",
+    rulesManualList: "<li><b>Mouse (Swipe):</b> drag tile to empty space <code>_</code>.</li><li><b>Mouse (Click):</b> click tile, then click <code>_</code>.</li><li><b>Keyboard:</b> <code>WASD</code> to select, <code>Arrows</code> to move.</li>",
+    rulesSortTitle: "📏 Sorting Order",
+    rulesSortList: "<li><b>Russian:</b> A, a, B, b...</li><li><b>Latin:</b> A, a, B, b... Z, z</li><li><b>Numbers:</b> Ascending 1, 2, 3... 66, 121</li><li><b>Symbols:</b> After letters/numbers</li><li><b>Empty <code>_</code>:</b> Bottom-right</li>",
+    controlHint: "🎯 <b>Mouse:</b> drag tile | <b>Keyboard:</b> <code>WASD</code> - select, <code>Arrows</code> - move",
+    stepCounter: "Step:"
+  }
+};

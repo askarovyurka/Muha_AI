@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title data-i18n="title">Пятнашки для мухи</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1 data-i18n="title">Пятнашки для мухи</h1>
+    <div class="tools">
+      <button id="textBtn" class="small" data-i18n="tabText">🔤 Текст (ФИО)</button>
+      <button id="numBtn" class="small" data-i18n="tabNum">🔢 Числа</button>
+      <button id="symBtn" class="small" data-i18n="tabSym">🔣 Символы</button>
+      <button id="solveFlyBtn" class="small primary" data-i18n="btnSolveFly">🪰 Решить мухой</button>
+      <button id="runTestsBtn" class="small primary">🧪 Тесты</button>
+      <button id="rulesBtn" class="small" data-i18n="btnRules">📖 Правила</button>
+      <button id="langBtn" class="small" aria-label="Language">🌐 Ru / En</button>
+      <button id="settingsBtn" class="small" aria-label="Settings">⚙️</button>
+      <button id="themeBtn" class="small" data-i18n="btnThemeDark">Тёмная</button>
+    </div>
+  </header>
+
+  <div class="hint-bar">
+    <span id="controlHint" data-i18n="controlHint">🎯 <b>Мышь:</b> потяни клетку (или клик → клик «_») | <b>Клавиатура:</b> <code>WASD</code> — выбор, <code>Стрелки ⬆️⬇️⬅️➡️</code> — ход</span>
+    <span id="stepCounter" data-i18n="stepCounter">Шаг: 0 / 0</span>
+  </div>
+
+  <p id="msg" role="status"></p>
+  <div id="board" aria-label="Board"></div>
+
+  <section class="player" id="player">
+    <div class="controls">
+      <button id="btnStart" class="small" title="Start">⏮</button>
+      <button id="btnPrev" class="small" title="Prev">◀</button>
+      <button id="btnPlay" class="small primary" data-i18n="btnPlay">▶ Запустить</button>
+      <button id="btnNext" class="small" title="Next">▶</button>
+      <button id="btnEnd" class="small" title="End">⏭</button>
+    </div>
+    <div class="slider-row">
+      <span data-i18n="lblRewind">Перемотка:</span>
+      <input type="range" id="stepSlider" min="0" value="0">
+    </div>
+    <div class="log-box" id="movesLog"></div>
+    <div class="row-btns">
+      <button id="btnExport" class="small primary" data-i18n="btnExport">Скачать .txt</button>
+      <button id="btnImport" class="small" data-i18n="btnImport">📂 Загрузить отчёт</button>
+      <button id="btnReset" class="small" data-i18n="btnReset">Сброс к началу</button>
+    </div>
+    <input type="file" id="importFile" accept=".txt" style="display:none">
+  </section>
+</main>
+
+<!-- Окно ввода данных -->
+<form id="textMenu" class="overlay" role="dialog" aria-label="Task setup">
+  <div class="dialog">
+    <h2 id="menuTitle" data-i18n="menuTitleTask">Настройка задачи</h2>
+
+    <div class="mode-tabs">
+      <button type="button" id="tabText" class="tab-btn active" data-i18n="tabText">🔤 Текст (ФИО)</button>
+      <button type="button" id="tabNum" class="tab-btn" data-i18n="tabNum">🔢 Числа</button>
+      <button type="button" id="tabSym" class="tab-btn" data-i18n="tabSym">🔣 Символы</button>
+    </div>
+
+    <label id="inputLabel" class="field-label" for="fio" data-i18n="lblInputText">Введите буквы (ФИО):</label>
+    <input id="fio" type="text" value="Аскаров Юрий Витальевич" autocomplete="off">
+
+    <div id="numExtraBox" class="extra-box" style="display:none">
+      <div class="num-tools">
+        <button type="button" id="genRandomNumsBtn" class="small" data-i18n="btnGenExample">🎲 Заполнить примером</button>
+      </div>
+    </div>
+
+    <div id="preview" class="preview-box"></div>
+
+    <label class="field-label" for="matrixSelect" data-i18n="lblRecSize">Рекомендуемый размер поля (от 2×2 до 12×12):</label>
+    <select id="matrixSelect"></select>
+
+    <label class="field-label" data-i18n="lblManualSize">Или укажите размер вручную (минимум 2×2):</label>
+    <div class="size-inputs">
+      <div>
+        <span data-i18n="lblRows">Строк (2–12):</span>
+        <input type="number" id="mRows" min="2" max="12" value="5">
+      </div>
+      <div>
+        <span data-i18n="lblCols">Столбцов (2–12):</span>
+        <input type="number" id="mCols" min="2" max="12" value="5">
+      </div>
+    </div>
+
+    <div class="row-btns">
+      <button id="buildManualBtn" type="button" data-i18n="btnPlayManual">Играть самому</button>
+      <button id="applyText" class="primary" type="submit" data-i18n="btnSolveFly">🪰 Решить мухой</button>
+      <button id="closeText" type="button" data-i18n="btnCancel">Отмена</button>
+    </div>
+  </div>
+</form>
+
+<!-- Окно правил -->
+<div id="rulesMenu" class="overlay" role="dialog" aria-label="Rules">
+  <div class="dialog dialog-wide">
+    <h2 data-i18n="menuTitleRules">📖 Правила и подсказки</h2>
+    <div class="rules-section">
+      <h3 data-i18n="rulesManualTitle">🎮 Как управлять клетками вручную</h3>
+      <ul data-i18n="rulesManualList">
+        <li><b>Мышкой (свайп):</b> потяните клетку в пустую ячейку <code>_</code>.</li>
+        <li><b>Мышкой (клик):</b> кликните клетку, затем соседнюю <code>_</code>.</li>
+        <li><b>Клавиатурой:</b> <code>WASD</code> — выбор, <code>Стрелки</code> — ход.</li>
+      </ul>
+    </div>
+    <div class="rules-section">
+      <h3 data-i18n="rulesSortTitle">📏 Порядок сортировки</h3>
+      <ol data-i18n="rulesSortList">
+        <li><b>Русские:</b> А, а, Б, б... Я, я</li>
+        <li><b>Латинские:</b> A, a, B, b... Z, z</li>
+        <li><b>Числа:</b> по возрастанию 1, 2, 3... 66, 121</li>
+        <li><b>Символы:</b> после букв и чисел</li>
+        <li><b>Пустые <code>_</code>:</b> справа снизу вверх</li>
+      </ol>
+    </div>
+    <button id="closeRules" class="primary" type="button" style="width:100%;margin-top:12px" data-i18n="btnGotIt">Понятно</button>
+  </div>
+</div>
+
+<!-- Окно настроек -->
+<div id="settingsMenu" class="overlay" role="dialog" aria-label="Settings">
+  <div class="dialog">
+    <h2 data-i18n="menuTitleSettings">⚙️ Настройки</h2>
+    <label class="field-label" for="timeoutSec" data-i18n="lblTimeout">Таймаут ожидания сервера (сек):</label>
+    <input type="number" id="timeoutSec" value="30" min="1" max="120">
+    
+    <label class="field-label" for="maxMoves" style="margin-top:12px;" data-i18n="lblMaxMoves">Лимит ходов для Мухи (остановка):</label>
+    <input type="number" id="maxMoves" value="1000" min="10" max="10000">
+
+    <p style="margin-top:15px">
+      <label class="chk-inline">
+        <input type="checkbox" id="chkUpper" checked>
+        <span data-i18n="lblForceUpper">Переводить буквы в ВЕРХНИЙ РЕГИСТР</span>
+      </label>
+    </p>
+    <button id="closeSettings" class="primary" type="button" style="width:100%;margin-top:15px" data-i18n="btnSave">Сохранить</button>
+  </div>
+</div>
+
+<!-- Анимация мухи -->
+<div id="modal" class="overlay" role="dialog" aria-label="Loading">
+  <div class="dialog" style="text-align:center">
+    <div class="sky"><div id="fly"><svg viewBox="0 0 64 64"><ellipse cx="32" cy="32" rx="10" ry="15" fill="#2a3a3f"/><ellipse cx="32" cy="18" rx="9" ry="8" fill="#3b4f55"/><circle cx="27" cy="15" r="3" fill="#c8392b"/><circle cx="37" cy="15" r="3" fill="#c8392b"/></svg></div></div>
+    <h2 id="mtitle" data-i18n="flyThinkingTitle">Муха думает</h2>
+    <p id="mtext" data-i18n="flyThinkingText">Ищет решение, ждем ответа сервера...</p>
+    <button id="cancelFly" type="button" style="width:100%" data-i18n="btnCancel">Отмена</button>
+  </div>
+</div>
+
+
+
+
+<!-- Окно отчета о тестах -->
+<div id="testsMenu" class="overlay" role="dialog" aria-label="Test Report">
+  <div class="dialog dialog-wide" style="max-width: 800px;">
+    <h2>🧪 Отчет о тестировании (Smoke + NFT AT)</h2>
+    <div id="testsLoader" style="display: none; text-align: center; margin: 20px 0;">
+      <span class="dir-badge">⏳ Выполняется прогон 15 видов тестов...</span>
+    </div>
+    <div class="log-box" id="testsLog" style="height: 350px; background: var(--ink); color: #0f0; display: none;"></div>
+    
+    <!-- Блок с пояснениями (изначально скрыт) -->
+    <div id="testsExplanation" style="display: none; font-size: 13px; line-height: 1.5; background: var(--bg); padding: 15px; border-radius: 10px; margin-top: 10px; color: var(--ink);">
+      <b>Краткая расшифровка (для чего эти тесты):</b><br>
+      Каждая зеленая надпись <code>PASSED</code> значит, что программа успешно сдала автоэкзамен:<br>
+      • <b>Functional</b> — решает ли программа матрицу от начала до конца без сбоев.<br>
+      • <b>Negative / BlackBox</b> — правильно ли система ругается, если ввести сломанные данные или нарушить лимиты поля.<br>
+      • <b>Security / Safety</b> — есть ли защита от хакеров (XSS) и бесконечных зависаний Мухи.<br>
+      • <b>Usability / GUI</b> — все ли кнопочки на месте и правильно ли считается площадь для ФИО.<br>
+      • <b>Performance / Stress</b> — не падает ли сервер под нагрузкой и отвечает ли быстрее 30 секунд.
+    </div>
+
+    <div class="row-btns" style="margin-top:12px">
+      <button id="explainTestsBtn" class="small" type="button">ℹ️ Что значат эти тесты?</button>
+      <button id="closeTests" class="primary" type="button">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Подключение модульных скриптов -->
+<script src="/js/state.js"></script>
+<script src="/js/parser.js"></script>
+<script src="/js/ui.js"></script>
+<script src="/js/game.js"></script>
+
+</body>
+</html>
